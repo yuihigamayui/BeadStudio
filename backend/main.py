@@ -8,7 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from backend.palette import load_palette
 from backend.pattern_generator import render_pattern, png_bytes, usage_table
-from backend.generation import Strategy, generate
+from backend.generation import MARD_ALGORITHMS, Strategy, generate
+from backend.design_workflow import design_routes
 
 DATA=Path(os.environ.get('BEAD_DATA', Path(__file__).parent.parent/'data'))
 DATA.mkdir(parents=True, exist_ok=True)
@@ -35,7 +36,7 @@ async def upload(file:UploadFile):
         im=Image.open(io.BytesIO(raw))
         if im.width*im.height>25_000_000: raise ValueError()
         im=ImageOps.exif_transpose(im).convert('RGBA')
-        bg=Image.new('RGBA',im.size,'white'); bg.alpha_composite(im); im=bg.convert('RGB')
+        if im.getchannel('A').getextrema() == (255, 255): im=im.convert('RGB')
     except Exception: raise HTTPException(400,'无效图片或像素过大')
     project=uuid.uuid4().hex
     name=project+'.png'; im.save(DATA/name)
@@ -78,7 +79,7 @@ def convert(ident:str,body:Convert):
         with Image.open(DATA/v['file']) as source:
             ids,_,_,metrics=generate(source,body)
     except (ValueError, RuntimeError) as exc:
-        raise HTTPException(422,'V3 生成失败：'+str(exc)) from exc
+        raise HTTPException(422,'图纸生成失败：'+str(exc)) from exc
     return put(v['project'],'pattern',ident,{'source':ident,'matrix':ids.tolist(),'strategy':body.model_dump(),'metrics':metrics})
 class Save(BaseModel):
     matrix:list[list[str|None]]
@@ -86,30 +87,38 @@ class Save(BaseModel):
 def save(ident:str,body:Save):
     v=get(ident)
     if v['kind']!='pattern': raise HTTPException(400,'非图纸版本')
-    m=body.matrix; old=v['matrix']; valid=set(load_palette(legacy=v.get('strategy',{}).get('algorithm')!='V3').id)
+    m=body.matrix; old=v['matrix']; valid=set(load_palette(legacy=v.get('strategy',{}).get('algorithm') not in MARD_ALGORITHMS).id)
     if len(m)!=len(old) or any(len(row)!=len(old[0]) for row in m) or any(code is not None and code not in valid for row in m for code in row): raise HTTPException(422,'无效矩阵或色号')
+    cap = v.get('palette', {}).get('max_colors')
+    if cap is not None and len({code for row in m for code in row if code is not None}) > cap:
+        raise HTTPException(422, f'图纸超过本次设定的 {cap} 色上限')
     payload={'source':v['source'],'matrix':m}
+    for field in ('run_id', 'board', 'palette'):
+        if field in v:
+            payload[field] = v[field]
     if 'strategy' in v: payload['strategy']=v['strategy']
     return put(v['project'],'pattern',ident,payload)
 @app.get('/api/patterns/{ident}/export/{kind}')
 def export(ident:str,kind:str):
     v=get(ident)
     if v['kind']!='pattern': raise HTTPException(400,'非图纸版本')
-    p=load_palette(legacy=v.get('strategy',{}).get('algorithm')!='V3'); m=np.array(v['matrix'],dtype=object); occupied=m!=None
-    if kind=='materials':
-        ids,counts=np.unique(m[occupied],return_counts=True)
-        import pandas as pd
-        table=pd.DataFrame({'id':ids,'count':counts}).merge(p,on='id')
-        return Response(table.to_csv(index=False).encode('utf-8-sig'),media_type='text/csv')
-    # Empty cells have a distinct blank label and white fill in numbered exports.
-    import pandas as pd
-    p=pd.concat([p,pd.DataFrame([{'id':'--','name':'空孔','r':255,'g':255,'b':255,'hex':'#FFFFFF'}])],ignore_index=True)
-    m=np.where(occupied,m,'--')
-    if kind=='numbered': im=render_pattern(m,p)
-    elif kind=='png':
-        lookup=p.set_index('id'); rgb=np.array([[lookup.loc[c,['r','g','b']].to_list() for c in row] for row in m],dtype=np.uint8)
-        rgba=np.dstack([rgb,occupied.astype(np.uint8)*255]); im=Image.fromarray(rgba).resize((len(m[0])*16,len(m)*16),Image.Resampling.NEAREST)
-    else: raise HTTPException(404,'未知导出类型')
-    return Response(png_bytes(im),media_type='image/png')
+    palette = load_palette(legacy=v.get('strategy', {}).get('algorithm') not in MARD_ALGORITHMS)
+    matrix = np.asarray(v['matrix'], dtype=object)
+    if kind == 'materials':
+        table = usage_table(matrix, palette).drop(columns='ratio')
+        return Response(table.to_csv(index=False).encode('utf-8-sig'), media_type='text/csv')
+    if kind == 'numbered':
+        image = render_pattern(matrix, palette)
+    elif kind == 'png':
+        occupied = matrix != None
+        rgb = np.full((*matrix.shape, 3), 255, dtype=np.uint8)
+        rgb[occupied] = palette.set_index('id').loc[matrix[occupied], ['r', 'g', 'b']].to_numpy()
+        rgba = np.dstack([rgb, occupied.astype(np.uint8) * 255])
+        height, width = matrix.shape
+        image = Image.fromarray(rgba).resize((width * 16, height * 16), Image.Resampling.NEAREST)
+    else:
+        raise HTTPException(404, '未知导出类型')
+    return Response(png_bytes(image), media_type='image/png')
+app.include_router(design_routes(db, get, put, lambda: DATA))
 DIST=Path(__file__).parent.parent/'frontend/dist'
 if DIST.exists(): app.mount('/',StaticFiles(directory=DIST,html=True),name='frontend')

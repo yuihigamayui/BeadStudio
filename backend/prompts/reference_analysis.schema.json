@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "用户要制作的主体"
+    },
+    "composition": {
+      "type": "string",
+      "description": "一句取景和背景建议"
+    },
+    "preserve": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "关键形状、色块或位置关系"
+    },
+    "simplify": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "可简化的纹理和局部元素"
+    },
+    "question": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "需要先向用户确认的主体歧义"
+    }
+  },
+  "required": [
+    "subject",
+    "composition",
+    "preserve",
+    "simplify",
+    "question"
+  ],
+  "additionalProperties": false
+}

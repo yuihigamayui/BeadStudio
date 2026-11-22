@@ -52,7 +52,7 @@ try {
         Set-Content $reqStamp $req
     }
     Run $python @('-c','from backend.v3.core import _kernel; _kernel(); import fastapi,uvicorn')
-    $files=@(Get-ChildItem frontend/src -Recurse -File)+@(Get-Item frontend/package.json,frontend/package-lock.json,frontend/index.html,frontend/tsconfig.json,frontend/vite.config.ts)
+    $files=@(Get-ChildItem -Path frontend/src,frontend/public -Recurse -File)+@(Get-Item frontend/package.json,frontend/package-lock.json,frontend/index.html,frontend/tsconfig.json,frontend/vite.config.ts)
     $signature=($files | Sort-Object FullName | ForEach-Object { FileHash $_.FullName.Substring($root.Length+1) }) -join ''
     $buildStamp=Join-Path $runtime 'frontend.sha256'
     if (!(Test-Path frontend/dist/index.html) -or !(Test-Path $buildStamp) -or (Get-Content $buildStamp -Raw).Trim() -ne $signature) {

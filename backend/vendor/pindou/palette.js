@@ -1,0 +1,744 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.mergeThresholdByLevel = exports.palette = exports.artkalPalette = exports.completePalette = exports.basicPalette = exports.paletteVersion = exports.brandLabels = void 0;
+exports.hexToRgb = hexToRgb;
+exports.getColor = getColor;
+exports.nearestPaletteColor = nearestPaletteColor;
+exports.colorDistance = colorDistance;
+exports.rgbToLab = rgbToLab;
+exports.colorDistanceLab = colorDistanceLab;
+exports.rgbThresholdToDeltaE = rgbThresholdToDeltaE;
+exports.mappedCode = mappedCode;
+const rawColorsCsv = `
+A1,#FAF4C8
+A2,#FFFFD5
+A3,#FEFF8B
+A4,#FBED56
+A5,#F4D738
+A6,#FEAC4C
+A7,#FE8B4C
+A8,#FFDA45
+A9,#FF995B
+A10,#F77C31
+A11,#FFDD99
+A12,#FE9F72
+A13,#FFC365
+A14,#FD543D
+A15,#FFF365
+A16,#FFFF9F
+A17,#FFE36E
+A18,#FEBE7D
+A19,#FD7C72
+A20,#FFD568
+A21,#FFE395
+A22,#F4F57D
+A23,#E6C9B7
+A24,#F7F8A2
+A25,#FFD67D
+A26,#FFC830
+B1,#E6EE31
+B2,#63F347
+B3,#9EF780
+B4,#5DE035
+B5,#35E352
+B6,#65E2A6
+B7,#3DAF80
+B8,#1C9C4F
+B9,#27523A
+B10,#95D3C2
+B11,#5D722A
+B12,#166F41
+B13,#CAEB7B
+B14,#ADE946
+B15,#2E5132
+B16,#C5ED9C
+B17,#9BB13A
+B18,#E6EE49
+B19,#24B88C
+B20,#C2F0CC
+B21,#156A6B
+B22,#0B3C43
+B23,#303A21
+B24,#EEFCA5
+B25,#4E846D
+B26,#8D7A35
+B27,#CCE1AF
+B28,#9EE5B9
+B29,#C5E254
+B30,#E2FCB1
+B31,#B0E792
+B32,#9CAB5A
+C1,#E8FFE7
+C2,#A9F9FC
+C3,#A0E2FB
+C4,#41CCFF
+C5,#01ACEB
+C6,#50AAF0
+C7,#3677D2
+C8,#0F54C0
+C9,#324BCA
+C10,#3EBCE2
+C11,#28DDDE
+C12,#1C334D
+C13,#CDE8FF
+C14,#D5FDFF
+C15,#22C4C6
+C16,#1557A8
+C17,#04D1F6
+C18,#1D3344
+C19,#1887A2
+C20,#176DAF
+C21,#BEDDFF
+C22,#67B4BE
+C23,#C8E2FF
+C24,#7CC4FF
+C25,#A9E5E5
+C26,#3CAED8
+C27,#D3DFFA
+C28,#BBCFED
+C29,#34488E
+D1,#AEB4F2
+D2,#858EDD
+D3,#2F54AF
+D4,#182A84
+D5,#B843C5
+D6,#AC7BDE
+D7,#8854B3
+D8,#E2D3FF
+D9,#D5B9F8
+D10,#361851
+D11,#B9BAE1
+D12,#DE9AD4
+D13,#B90095
+D14,#8B279B
+D15,#2F1F90
+D16,#E3E1EE
+D17,#C4D4F6
+D18,#A45EC7
+D19,#D8C3D7
+D20,#9C32B2
+D21,#9A009B
+D22,#333A95
+D23,#EBDAFC
+D24,#7786E5
+D25,#494FC7
+D26,#DFC2F8
+E1,#FDD3CC
+E2,#FEC0DF
+E3,#FFB7E7
+E4,#E8649E
+E5,#F551A2
+E6,#F13D74
+E7,#C63478
+E8,#FFDBE9
+E9,#E970CC
+E10,#D33793
+E11,#FCDDD2
+E12,#F78FC3
+E13,#B5006D
+E14,#FFD1BA
+E15,#F8C7C9
+E16,#FFF3EB
+E17,#FFE2EA
+E18,#FFC7DB
+E19,#FEBAD5
+E20,#D8C7D1
+E21,#BD9DA1
+E22,#B785A1
+E23,#937A8D
+E24,#E1BCE8
+F1,#FD957B
+F2,#FC3D46
+F3,#F74941
+F4,#FC283C
+F5,#E7002F
+F6,#943630
+F7,#971937
+F8,#BC0028
+F9,#E2677A
+F10,#8A4526
+F11,#5A2121
+F12,#FD4E6A
+F13,#F35744
+F14,#FFA9AD
+F15,#D30022
+F16,#FEC2A6
+F17,#E69C79
+F18,#D37C46
+F19,#C1444A
+F20,#CD9391
+F21,#F7B4C6
+F22,#FDC0D0
+F23,#F67E66
+F24,#E698AA
+F25,#E54B4F
+G1,#FFE2CE
+G2,#FFC4AA
+G3,#F4C3A5
+G4,#E1B383
+G5,#EDB045
+G6,#E99C17
+G7,#9D5B3E
+G8,#753832
+G9,#E6B483
+G10,#D98C39
+G11,#E0C593
+G12,#FFC890
+G13,#B7714A
+G14,#8D614C
+G15,#FCF9E0
+G16,#F2D9BA
+G17,#78524B
+G18,#FFE4CC
+G19,#E07935
+G20,#A94023
+G21,#B88558
+H1,#FDFBFF
+H2,#FEFFFF
+H3,#B6B1BA
+H4,#89858C
+H5,#48464E
+H6,#2F2B2F
+H7,#000000
+H8,#E7D6DB
+H9,#EDEDED
+H10,#EEE9EA
+H11,#CECDD5
+H12,#FFF5ED
+H13,#F5ECD2
+H14,#CFD7D3
+H15,#98A6A8
+H16,#1D1414
+H17,#F1EDED
+H18,#FFFDF0
+H19,#F6EFE2
+H20,#949FA3
+H21,#FFFBE1
+H22,#CACAD4
+H23,#9A9D94
+M1,#BCC6B8
+M2,#8AA386
+M3,#697D80
+M4,#E3D2BC
+M5,#D0CCAA
+M6,#B0A782
+M7,#B4A497
+M8,#B38281
+M9,#A58767
+M10,#C5B2BC
+M11,#9F7594
+M12,#644749
+M13,#D19066
+M14,#C77362
+M15,#757D78
+`;
+const rawExtendedColorsCsv = `
+P1,#FCF7F8
+P2,#B0A9AC
+P3,#AFDCAB
+P4,#FEA49F
+P5,#EE8C3E
+P6,#5FD0A7
+P7,#EB9270
+P8,#F0D958
+P9,#D9D9D9
+P10,#D9C7EA
+P11,#F3ECC9
+P12,#E6EEF2
+P13,#AACBEF
+P14,#337680
+P15,#668575
+P16,#FEBF45
+P17,#FEA324
+P18,#FEB89F
+P19,#FFFEEC
+P20,#FEBECF
+P21,#ECBEBF
+P22,#E4A89F
+P23,#A56268
+Q1,#F2A5E8
+Q2,#E9EC91
+Q3,#FFFF00
+Q4,#FFEBFA
+Q5,#76CEDE
+R1,#D50D21
+R2,#F92F83
+R3,#FD8324
+R4,#F8EC31
+R5,#35C75B
+R6,#238891
+R7,#19779D
+R8,#1A60C3
+R9,#9A56B4
+R10,#FFDB4C
+R11,#FFEBFA
+R12,#D8D5CE
+R13,#55514C
+R14,#9FE4DF
+R15,#77CEE9
+R16,#3ECFCA
+R17,#4A867A
+R18,#7FCD9D
+R19,#CDE55D
+R20,#E8C7B4
+R21,#AD6F3C
+R22,#6C372F
+R23,#FEB872
+R24,#F3C1C0
+R25,#C9675E
+R26,#D293BE
+R27,#EA8CB1
+R28,#9C87D6
+T1,#FFFFFF
+Y1,#FD6FB4
+Y2,#FEB481
+Y3,#D7FAA0
+Y4,#8BDBFA
+Y5,#E987EA
+ZG1,#DAABB3
+ZG2,#D6AA87
+ZG3,#C1BD8D
+ZG4,#96869F
+ZG5,#8490A6
+ZG6,#94BFE2
+ZG7,#E2A9D2
+ZG8,#AB91C0
+`;
+// Artkal S 系列 176 色（5mm 中豆）。色值来源 bitbead 公开色卡
+// https://www.bitbead.app/zh/colors/artkal （CC BY 4.0），仅取色号/名称/色值。
+const rawArtkalCsv = `
+S01,#FFFFFF,White
+S02,#FFA38B,Burning Sand
+S03,#FF8200,Tangerine
+S04,#FA4616,Orange
+S05,#EE2737,Tall Poppy
+S06,#EF64A2,Raspberry Pink
+S07,#97999B,Gray
+S08,#26D07C,Emerald
+S09,#007371,Dark Green
+S10,#56B7E6,Baby Blue
+S11,#0050B5,Dark Blue
+S12,#9063CD,Pastel Lavender
+S13,#000000,Black
+S14,#FDDA24,Sandstorm
+S15,#A72B2A,Redwood
+S16,#674736,Brown
+S17,#7B4D35,Light Brown
+S18,#EAA794,Sand
+S19,#F8C1B8,Bubble Gum
+S20,#249E6B,Green
+S21,#93C90E,Pastel Green
+S22,#483698,Purple
+S23,#7D55C7,Royal Purple
+S24,#1164C9,True Blue
+S25,#EF60A3,Hot Pink
+S26,#F04E98,Magenta
+S27,#FFC72C,Yellow
+S28,#EF95CF,Lily Pink
+S29,#FBDB65,Pastel Yellow
+S30,#A4E6E8,Shadow Green
+S31,#B5E3D8,Sea Mist
+S32,#FECB8B,Beeswax
+S33,#C5B4E3,Maverick
+S34,#D50032,Red
+S35,#F7CED7,Mona Lisa
+S36,#E06287,Old Pink
+S37,#8BD3E6,Blue-Green
+S38,#BC204B,Burgundy
+S39,#FF7F41,Yellow Orange
+S40,#F99FC9,Carnation Pink
+S41,#9A5516,Copper
+S42,#A09F9D,Silver
+S43,#75787B,Dark Gray
+S44,#9BCBEB,Sky Blue
+S45,#00B2A9,Medium Turquoise
+S46,#8EDD65,Bright Green
+S47,#A6631B,Marigold
+S48,#FFC845,Corn
+S49,#973961,Mulberry Wood
+S50,#FFB3AB,Mandys Pink
+S51,#FFF8DB,Spring Sun
+S52,#F8E08E,Picasso
+S53,#62A0E6,Blue Enchantress
+S54,#0090DA,Light Blue
+S55,#ADDC91,Pistachio
+S56,#FF6A39,Bright Carrot
+S57,#B33D26,Buccaneer
+S58,#BA0C2F,Paprika
+S59,#5949A7,Butterfly Bush
+S60,#9678D3,Lavender
+S61,#E6DE77,Key Lemon Pie
+S62,#007C58,Green Tea
+S63,#4C5914,Metallic Gold
+S64,#2C2D65,Black Rock
+S65,#F0EC74,Canary
+S66,#EE5340,Blaze Orange
+S67,#ECC3B2,Vanilla
+S68,#E7B78A,Tan
+S69,#212721,Mine Shaft
+S70,#BABC16,Dark Algae
+S71,#008522,Jade Green
+S72,#67D9DF,Light Sea Blue
+S73,#48A9C5,Steel Blue
+S74,#04A9C7,Azure
+S75,#0085AD,Dark Steel Blue
+S76,#00A7B5,Sea Blue
+S77,#D9D9D6,Ghost White
+S78,#C8C9C7,Ash Gray
+S79,#B1B3B3,Light Gray
+S80,#A2A569,Dark Olive
+S81,#D5A286,Deer
+S82,#C58B68,Clay
+S83,#B15533,Sienna
+S84,#AB5C57,Deep Chestnut
+S85,#8A2A2B,Red Wine
+S86,#F29D04,Goldenrod
+S87,#FF808B,Coral Red
+S88,#DA1884,Dark Pink
+S89,#53565A,Charcoal Gray
+S90,#FFC56E,Pastel Orange
+S91,#183028,Brunswick Green
+S92,#C69214,Dandelion
+S93,#EDC8A3,Pale Skin
+S94,#EAA794,Warm Blush
+S95,#E8927C,Salmon
+S96,#FF8D6D,Apricot
+S97,#E35205,Papaya
+S98,#80B6E8,Himalaya Blue
+S99,#5CA9CC,Waterfall
+S100,#5DB3CB,Lagoon
+S101,#00A3E1,Electric Blue
+S102,#0077CF,Pool Blue
+S103,#0067B9,Caribbean Blue
+S104,#007DBA,Deep Water
+S105,#00859B,Petrol Blue
+S106,#0076A8,Wedgewood Blue
+S107,#007096,Pond Blue
+S108,#E6C78A,Seashell Beige
+S109,#CEB888,Beige
+S110,#C6AA76,Beach Beige
+S111,#A08629,Caffe Latte
+S112,#897630,Oaktree Brown
+S113,#C3C6A8,Khaki
+S114,#C0BB87,Light Greengray
+S115,#B0AA7E,Mossy Green
+S116,#A3AA83,Earth Green
+S117,#77744D,Sage Green
+S118,#5E6738,Pinetree Green
+S119,#98DBCE,Frosty Blue
+S120,#9BE3BF,Polar Mint
+S121,#6BBBAE,Celadon Green
+S122,#00BB7E,Eucalyptus
+S123,#31B700,Clover Field
+S124,#035F1D,Pooltable Felt
+S125,#007864,Snake Green
+S126,#00685E,Dark Eucalyptus
+S127,#DECDE7,Marshmallow Rose
+S128,#C98BDB,Light Grape
+S129,#DCB6C9,Rosebud Pink
+S130,#DD74A1,Fuchsia
+S131,#AD96DC,Candy Violet
+S132,#EF426F,Flamingo
+S133,#C724B1,Pink Plum
+S134,#8031A7,Amethyst
+S135,#9FAEE5,Moonlight Blue
+S136,#B4B2E4,Summer Rain
+S137,#5F8DDA,Azur Blue
+S138,#5780D2,Cornflower Blue
+S139,#5576D1,Forget Me Not
+S140,#3C62C3,Indigo
+S141,#466CCA,Horizon Blue
+S142,#365ABD,Cobalt
+S143,#1E22AA,Royal Blue
+S144,#002D72,Marine
+S145,#E9E186,Pale Yellow Moss
+S146,#8C243D,Bloodrose Red
+S147,#86C8BC,Spearmint
+S148,#724736,Mocha
+S149,#FCD299,Creme
+S150,#8B84D7,Iris Violet
+S151,#335525,Forrest Green
+S152,#A7A4E0,Lilac
+S153,#C6C4EA,Pale Lilac
+S154,#EBC29D,Sahara Sand
+S155,#C58B68,Sunkissed Teint
+S156,#63666A,Steel Grey
+S157,#46494C,Iron Grey
+S158,#191D19,Pepper
+S159,#88888D,Oslo Gray
+SE01,#D1DDE6,Extended Pale Blue
+SE02,#9BB8E3,Extended Light Blue
+SE03,#5E8AB4,Extended Medium Blue
+SE04,#6AD1E3,Extended Cyan
+SE05,#03C1AA,Extended Teal
+SE06,#126AD4,Extended Bright Blue
+SE07,#BFA5B8,Extended Dusty Mauve
+SE08,#9B7793,Extended Muted Purple
+SE09,#693C5E,Extended Dark Plum
+SE10,#C964CF,Extended Bright Magenta
+SE11,#AD1AAC,Extended Deep Magenta
+SE12,#FFB25B,Extended Light Orange
+SE13,#E6A65D,Extended Caramel
+SE14,#D38235,Extended Dark Caramel
+SE15,#C16C18,Extended Burnt Caramel
+SE16,#F5B6CD,Extended Light Pink
+SE17,#5D2A2C,Extended Maroon
+`;
+exports.brandLabels = {
+    MARD: 'MARD',
+    ARTKAL: 'Artkal',
+};
+exports.paletteVersion = 'mard-291-artkal-176-v1';
+function parseRawColors(csv) {
+    return csv
+        .trim()
+        .split('\n')
+        .map((line) => {
+        const [code, hex, ...name] = line.split(',');
+        return { code: code.trim(), hex: hex.trim(), name: name.join(',').trim() };
+    });
+}
+const rawColors = parseRawColors(rawColorsCsv);
+const rawCompleteColors = [...rawColors, ...parseRawColors(rawExtendedColorsCsv)];
+const rawArtkalColors = parseRawColors(rawArtkalCsv);
+function makePalette(colors, brand) {
+    return colors.map(({ code, hex, name }) => {
+        const rgb = hexToRgb(hex);
+        const family = code.startsWith('SE') || code.startsWith('ZG') ? code.slice(0, 2) : code[0];
+        const codes = {};
+        codes[brand] = code;
+        return {
+            id: `${brand.toLowerCase()}-${code.toLowerCase()}`,
+            primaryBrand: brand,
+            primaryCode: code,
+            hex,
+            rgb,
+            group: family,
+            name: brand === 'ARTKAL' ? `Artkal ${name || code}` : `MARD ${code}`,
+            codes,
+        };
+    });
+}
+exports.basicPalette = makePalette(rawColors, 'MARD');
+exports.completePalette = makePalette(rawCompleteColors, 'MARD');
+exports.artkalPalette = makePalette(rawArtkalColors, 'ARTKAL');
+exports.palette = exports.basicPalette;
+/** 为跨品牌色号补全“最接近的可购买色号”，切换品牌后仍能显示对应编号。 */
+function linkNearestCodes(colors, source, brand) {
+    for (const color of colors) {
+        if (color.codes[brand])
+            continue;
+        let best = source[0];
+        let bestDistance = Number.POSITIVE_INFINITY;
+        for (const candidate of source) {
+            const distance = colorDistanceLab(color.rgb, candidate.rgb);
+            if (distance < bestDistance) {
+                best = candidate;
+                bestDistance = distance;
+            }
+        }
+        color.codes[brand] = best.primaryCode;
+    }
+}
+const colorIndex = new Map();
+for (const color of exports.completePalette)
+    colorIndex.set(color.id, color);
+for (const color of exports.artkalPalette)
+    colorIndex.set(color.id, color);
+function hexToRgb(hex) {
+    const normalized = hex.replace('#', '');
+    const value = Number.parseInt(normalized, 16);
+    return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+function getColor(id) {
+    if (!id)
+        return undefined;
+    return colorIndex.get(id);
+}
+// 量化时要对大量采样找最近色。缓存挂在色板数组上（WeakMap 不阻止 GC），
+// 使用精确 24bit RGB 键，避免同一 5bit 桶内的不同颜色复用错误的匹配结果。
+const nearestCaches = new WeakMap();
+const nearestCacheLimit = 60000;
+function nearestPaletteColor(rgb, candidates = exports.palette) {
+    let cache = nearestCaches.get(candidates);
+    if (!cache) {
+        cache = new Map();
+        nearestCaches.set(candidates, cache);
+    }
+    const key = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
+    const cached = cache.get(key);
+    if (cached)
+        return cached;
+    let best = candidates[0];
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const color of candidates) {
+        const distance = colorDistanceLab(rgb, color.rgb);
+        if (distance < bestDistance) {
+            best = color;
+            bestDistance = distance;
+        }
+    }
+    if (cache.size >= nearestCacheLimit)
+        cache.clear();
+    cache.set(key, best);
+    return best;
+}
+function colorDistance(a, b) {
+    const redMean = (a[0] + b[0]) / 2;
+    const r = a[0] - b[0];
+    const g = a[1] - b[1];
+    const blue = a[2] - b[2];
+    return Math.sqrt((2 + redMean / 256) * r * r + 4 * g * g + (2 + (255 - redMean) / 256) * blue * blue);
+}
+// Lab 转换按 24bit RGB 缓存：色板匹配会对同一批像素反复比较，转换一次即可。
+const labCache = new Map();
+// 阈值统一到 ΔE00 后逐格比较也会进缓存；设上限避免长会话内存无界增长。
+const labCacheLimit = 60000;
+function labOf(rgb) {
+    const key = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
+    const cached = labCache.get(key);
+    if (cached)
+        return cached;
+    const lab = rgbToLab(rgb);
+    if (labCache.size >= labCacheLimit)
+        labCache.clear();
+    labCache.set(key, lab);
+    return lab;
+}
+function rgbToLab(rgb) {
+    const r = srgbToLinear(rgb[0]);
+    const g = srgbToLinear(rgb[1]);
+    const b = srgbToLinear(rgb[2]);
+    // sRGB (D65) → XYZ → Lab
+    const x = labPivot((r * 0.4124564 + g * 0.3575761 + b * 0.1804375) / 0.95047);
+    const y = labPivot(r * 0.2126729 + g * 0.7151522 + b * 0.0721750);
+    const z = labPivot((r * 0.0193339 + g * 0.1191920 + b * 0.9503041) / 1.08883);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+function srgbToLinear(channel) {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+}
+function labPivot(value) {
+    return value > 0.008856 ? Math.cbrt(value) : 7.787 * value + 16 / 116;
+}
+/**
+ * 人眼感知色差（CIEDE2000）。全项目的色差判断（找最近色、去噪、合并、色差标注）
+ * 统一走这里；`colorDistance` 只保留给“背景容差”这类按单通道 RGB 标定的老参数。
+ */
+function colorDistanceLab(a, b) {
+    return deltaE2000(labOf(a), labOf(b));
+}
+/**
+ * 合并/去噪强度的感知阈值（CIEDE2000，下标即 0~4 档强度）。
+ *
+ * 标定依据（scripts/regression/lab-thresholds.mjs 可复算）：
+ * - ΔE00 ≈ 1 是刚能察觉的下限，2~3 已经能看出“不是同一颗豆”；
+ * - 现有色卡的最近邻色差中位数：MARD 291 色 4.0、Artkal 176 色 5.3，
+ *   也就是说 4~5 就是“同一色族里最接近的两颗豆”的距离；
+ * - 因此：≤3 视为几乎同色（正常清理即可合并），5 为同色族内可替换，
+ *   7.5 属于同色相深浅差，10 是只有最强档才允许的跨明度合并。
+ * 旧实现用的是 RGB 欧氏距离 26/42/62/84，在中间色区恰好对应 ΔE00 3.8/6.1/9.0/12.2，
+ * 新表在最强两档略收紧，避免把肉眼可分辨的颜色也压平。
+ */
+exports.mergeThresholdByLevel = [0, 3, 5, 7.5, 10];
+/**
+ * 历史 RGB 距离阈值 → CIEDE2000 的换算（分档线性插值）。
+ * 只用于把“早期按 RGB 距离调出来的阈值”平移到感知空间；新逻辑优先直接写 ΔE00 常量。
+ * 数据来源：MARD 467 色 + Artkal 176 色两两配对（约 10 万对），统计每档 ΔE00/RGB 的中位数比值。
+ */
+const rgbToDeltaEStops = [
+    [0, 0.21],
+    [30, 0.2],
+    [50, 0.19],
+    [80, 0.185],
+    [120, 0.178],
+    [200, 0.16],
+    [400, 0.137],
+];
+function rgbThresholdToDeltaE(rgbDistance) {
+    if (rgbDistance <= 0)
+        return 0;
+    for (let index = 1; index < rgbToDeltaEStops.length; index += 1) {
+        const [x1, y1] = rgbToDeltaEStops[index];
+        if (rgbDistance <= x1) {
+            const [x0, y0] = rgbToDeltaEStops[index - 1];
+            const ratio = y0 + ((y1 - y0) * (rgbDistance - x0)) / (x1 - x0);
+            return rgbDistance * ratio;
+        }
+    }
+    return rgbDistance * rgbToDeltaEStops[rgbToDeltaEStops.length - 1][1];
+}
+function deltaE2000(lab1, lab2) {
+    const l1 = lab1[0];
+    const a1 = lab1[1];
+    const b1 = lab1[2];
+    const l2 = lab2[0];
+    const a2 = lab2[1];
+    const b2 = lab2[2];
+    // 这里刻意用 sqrt 代替 hypot、复用 7 次方结果：逐像素找最近色时这是最热的一段，
+    // 公式与结果保持不变。
+    const c1 = Math.sqrt(a1 * a1 + b1 * b1);
+    const c2 = Math.sqrt(a2 * a2 + b2 * b2);
+    const cBar = (c1 + c2) / 2;
+    const cBar7 = cBar ** 7;
+    const g = 0.5 * (1 - Math.sqrt(cBar7 / (cBar7 + 25 ** 7)));
+    const a1p = (1 + g) * a1;
+    const a2p = (1 + g) * a2;
+    const c1p = Math.sqrt(a1p * a1p + b1 * b1);
+    const c2p = Math.sqrt(a2p * a2p + b2 * b2);
+    const h1p = hueAngle(b1, a1p);
+    const h2p = hueAngle(b2, a2p);
+    const dLp = l2 - l1;
+    const dCp = c2p - c1p;
+    let dhp = 0;
+    if (c1p * c2p !== 0) {
+        dhp = h2p - h1p;
+        if (dhp > 180)
+            dhp -= 360;
+        else if (dhp < -180)
+            dhp += 360;
+    }
+    const dHp = 2 * Math.sqrt(c1p * c2p) * Math.sin((dhp * Math.PI) / 360);
+    const lBarP = (l1 + l2) / 2;
+    const cBarP = (c1p + c2p) / 2;
+    let hBarP = h1p + h2p;
+    if (c1p * c2p !== 0) {
+        if (Math.abs(h1p - h2p) <= 180)
+            hBarP = (h1p + h2p) / 2;
+        else if (h1p + h2p < 360)
+            hBarP = (h1p + h2p + 360) / 2;
+        else
+            hBarP = (h1p + h2p - 360) / 2;
+    }
+    const t = 1 -
+        0.17 * Math.cos(((hBarP - 30) * Math.PI) / 180) +
+        0.24 * Math.cos((2 * hBarP * Math.PI) / 180) +
+        0.32 * Math.cos(((3 * hBarP + 6) * Math.PI) / 180) -
+        0.2 * Math.cos(((4 * hBarP - 63) * Math.PI) / 180);
+    const dTheta = 30 * Math.exp(-(((hBarP - 275) / 25) ** 2));
+    const cBarP7 = cBarP ** 7;
+    const rc = 2 * Math.sqrt(cBarP7 / (cBarP7 + 25 ** 7));
+    const lOffset = lBarP - 50;
+    const sl = 1 + (0.015 * lOffset * lOffset) / Math.sqrt(20 + lOffset * lOffset);
+    const sc = 1 + 0.045 * cBarP;
+    const sh = 1 + 0.015 * cBarP * t;
+    const rt = -Math.sin((2 * dTheta * Math.PI) / 180) * rc;
+    return Math.sqrt((dLp / sl) ** 2 +
+        (dCp / sc) ** 2 +
+        (dHp / sh) ** 2 +
+        rt * (dCp / sc) * (dHp / sh));
+}
+function hueAngle(b, a) {
+    if (a === 0 && b === 0)
+        return 0;
+    const angle = (Math.atan2(b, a) * 180) / Math.PI;
+    return angle >= 0 ? angle : angle + 360;
+}
+function mappedCode(color, brand) {
+    return color.codes[brand] ?? color.primaryCode;
+}
+// 放在文件末尾执行：颜色匹配依赖上方 Lab 缓存的初始化，提前调用会触发 TDZ。
+linkNearestCodes(exports.basicPalette, exports.artkalPalette, 'ARTKAL');
+linkNearestCodes(exports.completePalette, exports.artkalPalette, 'ARTKAL');
+linkNearestCodes(exports.artkalPalette, exports.completePalette, 'MARD');

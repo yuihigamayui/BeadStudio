@@ -21,3 +21,4 @@ archive/
 examples/test_images/
 examples/0202_v3_comparison.png
 .release-check/
+.DS_Store
