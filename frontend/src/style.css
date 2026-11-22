@@ -207,7 +207,7 @@ label { font-size: 13px; }
   position: relative;
   background: #fcf9eb;
   background-image: linear-gradient(#8d729947 1px, transparent 1px), linear-gradient(90deg, #8d729947 1px, transparent 1px);
-  background-size: calc(100% / 29) calc(100% / 29);
+  background-size: calc(100% / var(--sample-size, 58)) calc(100% / var(--sample-size, 58));
   outline: 2px solid var(--ink);
   box-shadow: 4px 4px 0 #8373b6;
 }
@@ -218,14 +218,13 @@ label { font-size: 13px; }
   inset: 0;
   pointer-events: none;
   background-image: linear-gradient(#49395525 1px, transparent 1px), linear-gradient(90deg, #49395525 1px, transparent 1px);
-  background-size: calc(100% / 29) calc(100% / 29);
+  background-size: calc(100% / var(--sample-size, 58)) calc(100% / var(--sample-size, 58));
 }
 .board-ruler { position: absolute; display: flex; justify-content: space-between; color: #574770; font: 650 10px var(--mono); }
 .ruler-top { left: 0; right: 0; top: -17px; }
 .ruler-side { top: 0; bottom: 0; left: -18px; flex-direction: column; }
 .preview-stage.has-image { padding: 18px; }
 .preview-stage.has-image img { display: block; position: absolute; width: 89%; height: 89%; object-fit: contain; }
-.preview-stage .pixel-preview { image-rendering: pixelated; }
 .preview-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-top: 2px solid var(--ink); }
 .preview-footer > div { min-width: 0; }
 .preview-footer strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

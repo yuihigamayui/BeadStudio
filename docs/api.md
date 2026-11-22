@@ -36,7 +36,7 @@ python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 
 ## 2. 调用 BeadStudio API
 
-先按 README 启动服务。下面的 Python 示例读取内置虎斑猫，转成 **29×29、最多 7 色**的图纸，然后把编号图纸和材料清单保存到当前目录。用项目的 Python 环境在仓库根目录运行即可，这个示例走本地底稿直转。
+先按 README 启动服务。下面的 Python 示例读取内置动漫头像的 AI 底稿，转成 **58×58** 的图纸，然后把编号图纸和材料清单保存到当前目录。用项目的 Python 环境在仓库根目录运行即可，这个示例走本地底稿直转。
 
 ```python
 import os
@@ -46,7 +46,7 @@ from pathlib import Path
 import httpx
 
 base_url = os.getenv("BEADSTUDIO_URL", "http://127.0.0.1:8000")
-sample = Path("frontend/public/tabby-example.png")
+sample = Path("examples/review-sample/artwork.png")
 
 with httpx.Client(base_url=base_url, timeout=15, trust_env=False) as client:
     with sample.open("rb") as image:
@@ -59,8 +59,8 @@ with httpx.Client(base_url=base_url, timeout=15, trust_env=False) as client:
     response = client.post(f"/api/v1/projects/{project['id']}/runs", json={
         "mode": "convert_only",
         "artwork_id": project["image_id"],
-        "board": {"cols": 29, "rows": 29, "margin_cells": 1},
-        "palette": {"id": "mard", "max_colors": 7},
+        "board": {"cols": 58, "rows": 58, "margin_cells": 1},
+        "palette": {"id": "mard", "max_colors": None},
     })
     run_id = response.raise_for_status().json()["id"]
 

@@ -36,7 +36,17 @@ export function App() {
   }
 
   useEffect(() => {
-    void refresh().catch(error => setStatus(error.message));
+    api<Version[]>('/projects').then(async saved => {
+      setVersions(saved);
+      const sample = saved.find(version => version.sample);
+      const onlySample = sample && saved.every(version =>
+        version.project === sample.project && (version.kind === 'image' || version.sample),
+      );
+      if (onlySample && !sessionStorage.getItem('beadstudio.run')) {
+        await loadPattern(sample);
+        setPage('review');
+      }
+    }).catch(error => setStatus(error.message));
   }, []);
 
   async function run(action: () => Promise<void>) {
@@ -150,6 +160,7 @@ export function App() {
   const beadCount = Array.from(counts.values()).reduce((sum, n) => sum + n, 0);
   const cols = matrix[0]?.length || 0;
   const patterns = versions.filter(version => version.kind === 'pattern' && !version.pending_artwork_edit);
+  const sample = patterns.find(version => version.sample);
   const choices = image ? sourceChoices(image, versions) : [];
   const compared = choices.find(choice => choice.version.id === sourceChoice) || choices[0];
   const canEditArtwork = !!pattern && image?.id === pattern.source && image?.role === 'artwork'
@@ -178,7 +189,7 @@ export function App() {
         </span>
       </div>
     </header>
-    {page === 'design' ? <DesignFlow onReady={openReview} /> : <main className="review-main" data-mobile-view={mobileView}>
+    {page === 'design' ? <DesignFlow onReady={openReview} sample={sample} /> : <main className="review-main" data-mobile-view={mobileView}>
       <div className="page-heading">
         <h1>审图<span aria-hidden="true" className="heading-period">.</span></h1>
         {pattern && <p>{cols} × {matrix.length} 格 · {counts.size} 色 · {beadCount} 颗{dirty ? ' · 有未保存修改' : ''}</p>}
@@ -312,7 +323,7 @@ export function App() {
                   });
                 }}>
                 <span className="pixel-icon icon-grid" aria-hidden="true" />
-                <span>拼豆图纸<small>{version.id.slice(0, 7)}</small></span>
+                <span>{version.sample ? '动漫头像示例' : '拼豆图纸'}{!version.sample && <small>{version.id.slice(0, 7)}</small>}</span>
               </button>)}
             </div>
           </section>

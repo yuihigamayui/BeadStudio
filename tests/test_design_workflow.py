@@ -277,3 +277,35 @@ def test_default_models_with_the_two_provider_keys(client, draft, monkeypatch):
 
     monkeypatch.setenv('BEAD_IMAGE_BASE_URL', 'https://another-image-gateway.example/v1')
     assert client.get('/api/v1/capabilities').json()['model_configured'] is False
+
+
+def test_review_sample_installed_once_and_editable(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, 'DATA', tmp_path)
+    with TestClient(main.app) as api:
+        versions = api.get('/api/projects').json()
+        sample, = [version for version in versions if version['kind'] == 'pattern']
+        assert sample['sample'] is True
+        assert sample['board']['rows'] == sample['board']['cols'] == 58
+        beads = [code for row in sample['matrix'] for code in row if code is not None]
+        assert len(beads) == 1871 and len(set(beads)) == 21
+
+        artwork = api.get('/api/versions/' + sample['source']).json()
+        reference = api.get('/api/versions/' + artwork['parent']).json()
+        assert (artwork['role'], reference['role']) == ('artwork', 'reference')
+        for asset in (artwork, reference):
+            with Image.open(io.BytesIO(api.get('/api/images/' + asset['id']).content)) as image:
+                image.verify()
+        export = f"/api/patterns/{sample['id']}/export"
+        for kind in ('numbered', 'png', 'materials'):
+            assert api.get(export + '/' + kind).status_code == 200
+
+        response = api.post(f"/api/patterns/{sample['id']}/save", json={'matrix': sample['matrix']})
+        assert response.status_code == 200
+        saved = response.json()
+        assert saved['source'] == sample['source'] and saved['parent'] == sample['id']
+
+    with TestClient(main.app) as api:
+        reopened = api.get('/api/projects').json()
+        assert len(reopened) == 4
+        assert [version for version in reopened if version.get('sample')] == [sample]
+        assert any(version['id'] == saved['id'] for version in reopened)

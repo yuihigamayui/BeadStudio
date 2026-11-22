@@ -1,9 +1,8 @@
-import {FormEvent, useEffect, useState} from 'react';
+import {type CSSProperties, FormEvent, useEffect, useState} from 'react';
 import {api} from './api';
-import type {Review, Run} from './api';
+import type {Review, Run, Version} from './api';
 
 type Mode = 'design_then_convert' | 'convert_only';
-const sampleImage = '/tabby-example.png';
 const boardSizes = [29, 48, 58, 100];
 
 const progress: Record<string, string> = {
@@ -13,10 +12,12 @@ const progress: Record<string, string> = {
   review: '图纸已生成，正在打开审图…',
 };
 
-export function DesignFlow({onReady}: {onReady: (review: Review) => Promise<void>}) {
+export function DesignFlow({onReady, sample}: {
+  onReady: (review: Review) => Promise<void>;
+  sample?: Version;
+}) {
   const [mode, setMode] = useState<Mode>('design_then_convert');
   const [file, setFile] = useState<File>();
-  const [exampleSelected, setExampleSelected] = useState(false);
   const [preview, setPreview] = useState('');
   const [dragging, setDragging] = useState(false);
   const [sampling, setSampling] = useState(false);
@@ -133,7 +134,7 @@ export function DesignFlow({onReady}: {onReady: (review: Review) => Promise<void
     }
   }
 
-  function chooseFile(next?: File, example = false) {
+  function chooseFile(next?: File) {
     if (!next) return;
     if (next.size > 20_000_000) {
       setError('图片超过 20 MB，请压缩后重试。');
@@ -145,24 +146,24 @@ export function DesignFlow({onReady}: {onReady: (review: Review) => Promise<void
     }
     setError('');
     setFile(next);
-    setExampleSelected(example);
   }
 
-  async function selectExample() {
+  async function openSample() {
+    if (!sample) return;
     setSampling(true);
     setError('');
     try {
-      const response = await fetch(sampleImage);
-      if (!response.ok) throw new Error();
-      chooseFile(new File([await response.blob()], '虎斑猫示例.png', {type: 'image/png'}), true);
-      setMode('convert_only');
-      setSize(29);
+      await onReady({pattern_version_id: sample.id, issues: []});
     } catch {
-      setError('示例图片加载失败，请重试。');
+      setError('示例图纸加载失败，请重试。');
     } finally {
       setSampling(false);
     }
   }
+
+  const sampleSize = sample?.matrix?.length;
+  const sampleBeads = sample?.matrix?.flat().filter(Boolean) || [];
+  const sampleColors = new Set(sampleBeads).size;
 
   return <main className="design-main">
     <div className="page-heading">
@@ -259,30 +260,30 @@ export function DesignFlow({onReady}: {onReady: (review: Review) => Promise<void
         {(error || run?.error) && <p role="alert" className="warning">{error || run?.error?.message}</p>}
       </section>
 
-      <aside className="design-preview pixel-panel">
+      {(preview || sample) && <aside className="design-preview pixel-panel">
         <div className="preview-header">
           <h2>{preview ? '输入预览' : '图纸示例'}</h2>
           <span className="preview-dots" aria-hidden="true"><i /><i /><i /></span>
         </div>
         <div className={`preview-stage${preview ? ' has-image' : ''}`}>
           {preview
-            ? <img src={preview} className={exampleSelected ? 'pixel-preview' : undefined} alt={file ? '已上传的 ' + file.name : '输入预览'} />
-            : <div className="sample-board">
-              <div className="board-ruler ruler-top" aria-hidden="true"><span>01</span><span>29</span></div>
-              <div className="board-ruler ruler-side" aria-hidden="true"><span>01</span><span>29</span></div>
-              <img src={sampleImage} alt="29×29 的虎斑猫像素图示例" />
+            ? <img src={preview} alt={file ? '已上传的 ' + file.name : '输入预览'} />
+            : <div className="sample-board" style={{'--sample-size': sampleSize} as CSSProperties}>
+              <div className="board-ruler ruler-top" aria-hidden="true"><span>01</span><span>{sampleSize}</span></div>
+              <div className="board-ruler ruler-side" aria-hidden="true"><span>01</span><span>{sampleSize}</span></div>
+              <img src={`/api/patterns/${sample?.id}/export/png`} alt="动漫头像拼豆图纸示例" />
             </div>}
         </div>
         <div className="preview-footer">
           <div>
-            <strong>{preview ? file?.name : '虎斑猫'}</strong>
-            {!preview && <small>29 × 29 格 · 8 色 · 454 颗</small>}
+            <strong>{preview ? file?.name : '动漫头像示例'}</strong>
+            {!preview && <small>{sampleSize} × {sampleSize} 格 · {sampleColors} 色 · {sampleBeads.length} 颗</small>}
           </div>
-          {!preview && <button type="button" className="sample-button" onClick={selectExample} disabled={locked}>
-            {sampling ? '载入中…' : '试转示例'} <span aria-hidden="true">↗</span>
+          {!preview && <button type="button" className="sample-button" onClick={openSample} disabled={locked}>
+            {sampling ? '载入中…' : '查看示例'} <span aria-hidden="true">↗</span>
           </button>}
         </div>
-      </aside>
+      </aside>}
     </div>
   </main>;
 }

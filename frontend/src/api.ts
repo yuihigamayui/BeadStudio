@@ -16,6 +16,7 @@ export type Version = {
   matrix?: Matrix;
   strategy?: Strategy;
   pending_artwork_edit?: boolean;
+  sample?: boolean;
 };
 
 export type Color = {id: string; name: string; hex: string};

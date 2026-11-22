@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, model_validator
 from backend import design_model
 from backend.design_model import ArtworkPlan, ModelError, artwork_edit_prompt, artwork_prompt, detail_guidance
 from backend.generation import Strategy, generate
+from backend.review_sample import seed_review_sample
 
 LOG = logging.getLogger(__name__)
 
@@ -209,6 +210,8 @@ def design_routes(db, get, put, data_directory):
     @asynccontextmanager
     async def lifespan(_app):
         with closing(connection()) as conn, conn:
+            conn.execute('BEGIN IMMEDIATE')
+            seed_review_sample(conn, data_directory())
             pending = conn.execute("SELECT payload FROM design_runs WHERE json_extract(payload,'$.status') IN ('running','queued')")
             for (payload,) in pending.fetchall():
                 state = json.loads(payload)
